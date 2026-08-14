@@ -267,10 +267,41 @@ def build_parser():
     g = ap.add_mutually_exclusive_group(required=True)
     g.add_argument('-m', dest='module', nargs=1, help="run given module as __main__")
     g.add_argument('--merge', nargs='+', type=Path, help="merge JSON coverage files, saving to --out")
+    # Like --merge, this is a mode rather than a setting: being in this group
+    # keeps it out of the configurable surface derive_configurable_keys()
+    # computes, with no special case needed.
+    g.add_argument('--migrate-coveragerc', nargs='?', type=Path, const=Path('.coveragerc'),
+                   metavar="PATH",
+                   help="translate a coverage.py .coveragerc into a slipcover.toml and exit")
     g.add_argument('script', nargs='?', type=Path, help="the script to run")
     ap.add_argument('script_or_module_args', nargs=argparse.REMAINDER)
 
     return ap
+
+
+def migrate_coveragerc(path):
+    """Translates a .coveragerc into a slipcover.toml, reporting what didn't
+    come across. Returns a process exit code.
+    """
+    from slipcover.migrate import MigrationError, migrate
+
+    try:
+        out, settings, skipped = migrate(path)
+    except MigrationError as e:
+        print(f"slipcover: {e}", file=sys.stderr)
+        return 1
+
+    print(f"Wrote {out} with {len(settings)} setting{'' if len(settings) == 1 else 's'}.")
+
+    if skipped:
+        # Naming these is the point of the command: a migration that quietly
+        # dropped half a configuration would be worse than none at all.
+        print("\nNot migrated:")
+        for section, key, reason in skipped:
+            where = f"[{section}] {key}" if key else f"[{section}]"
+            print(f"  {where}: {reason}")
+
+    return 0
 
 
 def main():
@@ -297,6 +328,11 @@ def main():
         args.script_or_module_args = sys.argv[minus_m+2:]
     else:
         args = ap.parse_args(sys.argv[1:])
+
+    # A one-off translation, not a coverage run: nothing below applies, and
+    # reading a config file to migrate one would be circular.
+    if args.migrate_coveragerc is not None:
+        return migrate_coveragerc(args.migrate_coveragerc)
 
     # A slipcover.toml replaces [tool.slipcover] rather than merging with it:
     # the file is meant for projects that would rather not carry a

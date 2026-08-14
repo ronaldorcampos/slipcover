@@ -171,6 +171,26 @@ arguments still take precedence. The two files are searched for independently,
 so a `slipcover.toml` found further up the directory tree still takes
 precedence over a `pyproject.toml` in the current directory.
 
+### Migrating from coverage.py
+If you're coming from [Coverage.py](https://github.com/nedbat/coveragepy),
+SlipCover can translate an existing `.coveragerc` for you:
+
+```console
+python3 -m slipcover --migrate-coveragerc
+```
+
+This reads `.coveragerc` from the current directory — pass a path to read a
+different file — and writes a `slipcover.toml` beside it. An existing
+`slipcover.toml` is never overwritten.
+
+Not every coverage.py setting has an equivalent, and the ones that don't are
+listed on stdout rather than dropped quietly, so you can see what didn't come
+across. `branch`, `source`, `omit`, `fail_under`, `skip_covered`,
+`exclude_lines` and `exclude_also` are translated; settings covering
+facilities SlipCover doesn't have — `include`, `parallel`, `concurrency`,
+`data_file` and the `[html]`/`[paths]` sections among them — are reported and
+left behind.
+
 ## Usage example
 ```console
 $ python3 -m slipcover -m pytest
@@ -217,7 +237,7 @@ usage: SlipCover [-h] [--branch] [--format {text,json,xml,lcov}] [--json]
                  [--source SRC1,SRC2,...] [--omit PAT1,PAT2,...] [--immediate]
                  [--skip-covered] [--fail-under FAIL_UNDER] [--threshold T]
                  [--missing-width WIDTH] [--sigterm] [--version] [-m MODULE]
-                 [--merge MERGE [MERGE ...]]
+                 [--merge MERGE [MERGE ...]] [--migrate-coveragerc [PATH]]
                  [script] ...
 
 positional arguments:
@@ -263,6 +283,9 @@ options:
   -m MODULE             run given module as __main__
   --merge MERGE [MERGE ...]
                         merge JSON coverage files, saving to --out
+  --migrate-coveragerc [PATH]
+                        translate a coverage.py .coveragerc into a
+                        slipcover.toml and exit
 ```
 `--exclude-lines`/`--exclude-also` aren't listed here — they're configurable
 only via `pyproject.toml` (see [Configuration via `pyproject.toml`](#configuration-via-pyprojecttoml) above).
